@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="数学英語">
+<title>数学英語クイズ</title>
+<style>
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: #f0f2f5;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+  }
+  #app {
+    width: 100%;
+    max-width: 400px;
+    background: #ffffff;
+    min-height: 100vh;
+    padding: 20px;
+    box-sizing: border-box;
+    position: relative;
+    box-shadow: 0 0 10px rgba(0,0,0,0.1);
+  }
+  h2 { font-size: 1.2rem; color: #333; text-align: center; margin-bottom: 5px; }
+  p { color: #666; font-size: 0.9rem; text-align: center; line-height: 1.5; }
+  .category-label { text-align: center; font-size: 0.9rem; color: #888; margin-bottom: 20px; }
+  .word { font-size: 2.2rem; text-align: center; margin: 30px 0; font-weight: bold; color: #1a73e8; }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 15px;
+    margin-bottom: 12px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    background: #fff;
+    font-size: 1.1rem;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+  .btn:active { background: #f0f0f0; }
+  .btn-primary { background: #1a73e8; color: white; border: none; margin-top: 30px; font-weight: bold; }
+  .btn-primary:active { background: #1557b0; }
+  .btn-secondary { background: #ff9800; color: white; border: none; margin-top: 10px; font-weight: bold; }
+  .btn-secondary:active { background: #e68a00; }
+  .hidden { display: none; }
+  .result-banner {
+    padding: 15px;
+    text-align: center;
+    font-size: 1.5rem;
+    font-weight: bold;
+    border-radius: 8px;
+    margin-bottom: 20px;
+    color: #fff;
+  }
+  .correct-bg { background: #4caf50; }
+  .incorrect-bg { background: #f44336; }
+  .explanation-box { background: #f9f9f9; padding: 20px; border-radius: 8px; margin-bottom: 20px; line-height: 1.6; }
+  .correct-answer-text { font-size: 1.2rem; font-weight: bold; color: #333; margin-bottom: 10px; border-bottom: 2px solid #ddd; padding-bottom: 5px;}
+  .synonym { color: #666; font-size: 0.95rem; margin-top: 15px; padding-top: 15px; border-top: 1px dashed #ccc;}
+  .toast {
+    position: absolute; top: 20px; left: 50%; transform: translateX(-50%);
+    background: #333; color: #fff; padding: 10px 20px; border-radius: 20px;
+    font-size: 0.9rem; display: none; width: max-content; z-index: 100;
+  }
+  .loading-container {
+    text-align: center;
+    margin-top: 100px;
+  }
+  .status-text { margin-top: 20px; font-weight: bold; color: #1a73e8; text-align: center; }
+  .title-menu { display: flex; flex-direction: column; gap: 15px; margin-top: 30px; }
+  .title-menu select { padding: 12px; font-size: 1.1rem; border: 2px solid #ccc; border-radius: 8px; }
+  .mode-desc { font-size: 0.85rem; color: #666; margin-top: -10px; margin-bottom: 5px; text-align: center; }
+  .finish-title { font-size: 1.8rem; color: #4caf50; text-align: center; margin: 30px 0; font-weight: bold; }
+  .settings-group { display: flex; flex-direction: column; gap: 10px; background: #f9f9f9; padding: 15px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 15px; }
+  .settings-group label { font-size: 1rem; color: #333; display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .quit-btn { padding: 5px 10px; font-size: 0.85rem; background: #f0f0f0; border: 1px solid #ccc; border-radius: 4px; cursor: pointer; color: #555; }
+  .quit-btn:hover { background: #e0e0e0; }
+  
+  .modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0, 0, 0, 0.5); z-index: 1000;
+    display: flex; justify-content: center; align-items: center;
+  }
+  .modal-box {
+    background: #fff; padding: 20px; border-radius: 12px;
+    width: 80%; max-width: 320px; text-align: center; box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  }
+  .modal-box p { font-size: 1rem; margin-bottom: 20px; color: #333; line-height: 1.4; }
+  .modal-buttons { display: flex; gap: 10px; justify-content: center; }
+  .modal-btn { padding: 10px 20px; border: none; border-radius: 6px; font-weight: bold; cursor: pointer; flex: 1; }
+  .modal-btn-ok { background: #1a73e8; color: white; }
+  .modal-btn-cancel { background: #ccc; color: #333; }
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div id="toast" class="toast">復習リストに追加しました</div>
+
+  <!-- ロード画面 (自動読み込み用) -->
+  <div id="loading-screen" class="loading-container">
+    <h2>数学英語アプリ</h2>
+    <p>単語データを読み込んでいます...</p>
+    <p id="loading-error" style="color: red; display: none;">データの読み込みに失敗しました。<br>math_words.csv が同じフォルダに存在するか確認してください。</p>
+  </div>
+
+  <!-- タイトル画面 -->
+  <div id="title-screen" class="hidden">
+    <h2>数学英語クイズ</h2>
+    <p>学習モードを選択してください</p>
+    <div class="title-menu">
+      <div class="settings-group">
+        <label><input type="radio" name="quiz-type" value="en2ja" checked> 🇬🇧 英単語 → 🇯🇵 日本語訳</label>
+        <label><input type="radio" name="quiz-type" value="ja2en"> 🇯🇵 日本語訳 → 🇬🇧 英単語</label>
+      </div>
+      <button class="btn btn-primary" style="margin-top:0;" onclick="startQuiz('all')">すべての分野をまぜる</button>
+      <div style="border-top: 1px dashed #ccc; margin: 10px 0;"></div>
+      <p class="mode-desc">分野を指定して学習</p>
+      <select id="category-select"></select>
+      <button class="btn" style="background:#e8f0fe; color:#1a73e8; border-color:#1a73e8;" onclick="startQuiz('category')">選んだ分野でスタート</button>
+      <div style="border-top: 1px dashed #ccc; margin: 10px 0;"></div>
+      <button class="btn btn-secondary" style="margin-top:0;" onclick="startQuiz('review')">復習リストから学ぶ <span id="review-count">(0件)</span></button>
+    </div>
+  </div>
+
+  <!-- クイズ画面 -->
+  <div id="quiz-screen" class="hidden">
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+      <h2 id="question-counter" style="margin: 0;">Question 1</h2>
+      <button class="quit-btn" onclick="quitToTitle()">中断して戻る</button>
+    </div>
+    <div id="current-category-label" class="category-label">Category</div>
+    <div id="english-word" class="word">Word</div>
+    <div id="options-container"></div>
+  </div>
+
+  <!-- 結果・解説画面 -->
+  <div id="result-screen" class="hidden">
+    <div id="result-banner" class="result-banner">正解！</div>
+    <div class="explanation-box">
+      <div class="correct-answer-text">正解: <span id="correct-translation"></span></div>
+      <div id="explanation-text"></div>
+      <div id="synonym-text" class="synonym"></div>
+    </div>
+    <button id="btn-review" class="btn btn-secondary">【復習リストに入れる】</button>
+    <button id="btn-next" class="btn btn-primary">【次に進む】</button>
+    <div style="text-align: center; margin-top: 15px;">
+      <button class="quit-btn" style="background: transparent; border: none; text-decoration: underline;" onclick="quitToTitle()">タイトルに戻る</button>
+    </div>
+  </div>
+
+  <!-- 終了画面 -->
+  <div id="finish-screen" class="hidden">
+    <div class="finish-title">学習完了！</div>
+    <p>リストの単語を一巡しました。お疲れ様です！</p>
+    <button class="btn btn-primary" onclick="retryQuiz()">【もう1周する】</button>
+    <button class="btn btn-secondary" onclick="startQuiz('review')">【復習リストに行く】</button>
+    <button class="btn" onclick="backToTitle()">【タイトルに戻る】</button>
+  </div>
+
+  <div id="status" class="status-text hidden"></div>
+
+  <!-- カスタムモーダル -->
+  <div id="custom-modal" class="modal-overlay hidden">
+    <div class="modal-box">
+      <p id="modal-message"></p>
+      <div class="modal-buttons">
+        <button id="modal-btn-cancel" class="modal-btn modal-btn-cancel hidden" onclick="handleModalAction(false)">キャンセル</button>
+        <button id="modal-btn-ok" class="modal-btn modal-btn-ok" onclick="handleModalAction(true)">OK</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 単語データをHTML内に直接埋め込み (別ファイルが不要になり、Safariでも確実に動きます) -->
+<script id="csv-data" type="text/csv">
+英単語,日本語訳,分野,解説,類義語・関連語
+map,写像,常識単語,二つの集合の間で要素を対応させる規則のこと。,類義語: mapping
+function,関数,常識単語,各入力に対してただ一つの出力を割り当てる規則。写像とほぼ同義ですが数値を扱う場合によく使われます。,関連語: map (写像)
+set,集合,常識単語,数学的な対象の集まり。現代数学の基礎となる概念です。,関連語: subset (部分集合)
+element,元(要素),常識単語,集合を構成している個々の対象のこと。,関連語: member (メンバー)
+subset,部分集合,常識単語,ある集合の要素の一部(または全部)からなる集合。,関連語: superset (上位集合)
+domain,定義域,常識単語,関数や写像が定義されている入力の集合。,関連語: codomain (終域)
+codomain,終域,常識単語,関数や写像の出力が属する集合。,関連語: range (値域)
+range,値域,常識単語,関数や写像が実際に取る値の集合。,関連語: image (像)
+image,像,常識単語,写像によって移された先の要素や集合。,関連語: inverse image (逆像)
+inverse,逆(逆元・逆写像),常識単語,演算や写像を元に戻す操作や要素。,関連語: inverse function (逆関数)
+proof,証明,常識単語,ある命題が真であることを論理的に導き出す過程。,関連語: prove (証明する)
+theorem,定理,常識単語,証明された重要な命題。,関連語: lemma (補題)
+lemma,補題,常識単語,定理を証明するために用意される補助的な命題。,関連語: proposition (命題)
+proposition,命題,常識単語,真偽が判定できる文あるいは比較的小さな定理。,関連語: statement (主張)
+definition,定義,常識単語,数学的な概念の意味を明確に定めたもの。,関連語: axiom (公理)
+axiom,公理,常識単語,証明なしに真であると仮定される前提。,関連語: postulate (公準)
+example,例,常識単語,定義や定理を具体的に説明するためのもの。,対義語: counterexample (反例)
+variable,変数,常識単語,様々な値を取り得る記号。,対義語: constant (定数)
+constant,定数,常識単語,固定された値を持つ記号や数。,対義語: variable (変数)
+equation,方程式,常識単語,未知数を含む等式。,関連語: identity (恒等式)
+formula,公式,常識単語,数式で表された一般的な規則や定理。,関連語: equation (方程式)
+notation,記法,常識単語,数学的な概念を表すための記号の使い方のこと。,関連語: denote (〜を表す)
+property,性質,常識単語,ある数学的対象が持っている特徴のこと。,関連語: characterize (特徴づける)
+generalization,一般化,常識単語,特定のケースで成り立つ事柄をより広い範囲で成り立つように拡張すること。,関連語: specialize (特殊化する)
+iff,〜のときかつそのときに限り,論理・一般・接続詞,if and only if の略。数学の定理で同値条件(必要十分条件)を示す際に非常に頻繁に使われます。,類義語: equivalently (同値なことだが)
+respectively,それぞれ,論理・一般・接続詞,「A and B correspond to X and Y、 respectively (AとBはそれぞれXとYに対応する)」のように使われます。,関連語: correspond to (〜に対応する)
+vice versa,逆もまた同様,論理・一般・接続詞,逆の順序や関係についても同じことが言える場合に使います。,関連語: conversely (逆に)
+i.e.,すなわち(言い換えれば),論理・一般・接続詞,ラテン語の id est の略。直前の内容を別の言葉で分かりやすく言い換える際に使います。,類義語: that is
+e.g.,例えば,論理・一般・接続詞,ラテン語の exempli gratia の略。具体例を挙げる際に使います。,類義語: for example
+namely,すなわち(具体的に言うと),論理・一般・接続詞,抽象的なことを言った直後にその具体的な中身を列挙する際に使います。,類義語: specifically
+w.r.t.,〜に関して,論理・一般・接続詞,with respect to の略。微分する変数などを指定する際(例: derivative w.r.t. x)によく用いられます。,類義語: concerning
+arbitrary,任意の,論理・一般・接続詞,条件を満たすどのような要素を選んでも成り立つことを示す際に用います(for an arbitrary x)。,関連語: any (いかなる〜も)
+trivial,自明な,論理・一般・接続詞,証明するまでもなく明らかであること。またはゼロベクトルや単位元のみからなる部分群などを指すこともあります。,対義語: non-trivial (非自明な)
+canonical,自然な(標準的な),論理・一般・接続詞,恣意的な選択に依存せず構造から自然に定まる写像や形式のこと(canonical homomorphismなど)。,類義語: natural
+assume,仮定する,論理・一般・接続詞,証明の出発点としてある条件が成り立つと設定すること。「Suppose」と同じように使われます。,関連語: assumption (仮定)
+let,〜とする,論理・一般・接続詞,変数や記号を定義する際によく使われます(Let X be a topological space)。,関連語: define (定義する)
+denote,〜を表す,論理・一般・接続詞,記号が何の意味を持つかを示す際に用います(Let f(x) denote the function...)。,関連語: represent
+sufficient condition,十分条件,論理・一般・接続詞,命題 P ⇒ Q において P は Q であるための十分条件と呼ばれます。,関連語: necessary condition (必要条件)
+equivalent,同値な,論理・一般・接続詞,二つの命題が全く同じ真偽を持つこと、または二つの対象が特定の関係において等しいとみなせること。,関連語: equivalence relation (同値関係)
+induction,数学的帰納法,論理・一般・接続詞,自然数に関する命題を証明する際の基本的な手法。,対義語: deduction (演繹法)
+contradiction,矛盾,論理・一般・接続詞,背理法(proof by contradiction)において仮定から導かれる論理的にあり得ない結論のこと。,関連語: absurd (不合理な)
+corollary,系,論理・一般・接続詞,ある定理(theorem)から直ちに導き出される命題のことです。,関連語: lemma (補題)
+Q.E.D.,証明終了,論理・一般・接続詞,quod erat demonstrandum(かく示された)の略。証明の終わりに置かれますが最近は四角の記号(■や□)が主流です。,関連語: proof (証明)
+well-defined,矛盾なく定義された,論理・一般・接続詞,商集合上での演算などを定義した際、代表元の取り方によらず結果が一つに定まっている状態。,関連語: ill-defined
+holomorphic,正則な,解析学,複素平面上の開集合において微分可能な関数のこと。複素解析の中心的な研究対象です。,類義語: analytic (解析的な)
+meromorphic,有理型な,解析学,領域内の極(孤立特異点)を除いて正則な複素関数のことです。,関連語: pole (極)
+singularity,特異点,解析学,関数が定義されない、あるいは微分不可能になる点のこと。,関連語: isolated singularity (孤立特異点)
+analytic continuation,解析接続,解析学,ある領域で定義された正則関数を、より広い領域の正則関数へと自然に拡張すること。,関連語: Taylor series (テイラー級数)
+residue,留数,解析学,孤立特異点の周りでの複素積分の値を決定する係数。留数定理は積分計算に不可欠です。,関連語: contour integration (経路積分)
+absolute convergence,絶対収束,解析学,級数の各項の絶対値をとって作った級数が収束すること。和の順序交換が可能になります。,関連語: conditional convergence (条件収束)
+radius of convergence,収束半径,解析学,冪級数(べき級数)が絶対収束する変数の領域の半径のこと。,関連語: power series (冪級数)
+uniform convergence,一様収束,解析学,関数列がある集合上で一様に極限関数に近づくこと。極限と積分の順序交換などで重要な条件となります。,対義語: pointwise convergence (各点収束)
+harmonic,調和な,解析学,ラプラス方程式を満たす2回連続微分可能な関数のこと。複素解析においては正則関数の実部と虚部は調和関数になります。,関連語: Laplacian (ラプラシアン)
+integrable,可積分な,解析学,ルベーグ積分やリーマン積分において積分値が有限に確定する関数の性質。,関連語: measurable (可測な)
+derivative,導関数,解析学,関数を微分して得られる関数のこと。偏微分は partial derivative と呼びます。,関連語: differentiable (微分可能な)
+differential equation,微分方程式,解析学,未知関数とその導関数を含む方程式のこと。物理現象の記述などに不可欠です。,関連語: ordinary differential equation (常微分方程式)
+sequence,数列(点列),解析学,数が順番に並んだもの。級数(series)とは区別されます。,関連語: series (級数)
+supremum,上限(sup),解析学,ある集合の上界の中で最小のもの。実数の連続性公理において重要です。,対義語: infimum (下限・inf)
+limit,極限,解析学,変数が近づくにつれて関数や数列が近づく値。,関連語: convergence (収束)
+continuous,連続な,解析学,グラフがつながっていること。厳密には極限と関数の値が一致すること。,関連語: discontinuity (不連続性)
+integral,積分,解析学,関数のグラフの下の面積を求める操作、または微分の逆操作。,関連語: derivative (導関数)
+measure,測度,解析学,長さ、面積、体積などを一般化した概念。,関連語: Lebesgue measure (ルベーグ測度)
+measure zero,測度零,解析学,ルベーグ測度が0であるような集合のこと。積分の値に影響を与えないという特徴があります。,関連語: almost everywhere (ほとんど至る所で)
+probability,確率,解析学,事象が起こる確からしさの度合い。測度論を基礎とします。,関連語: random variable (確率変数)
+Fourier transform,フーリエ変換,解析学,関数を周波数成分に分解する積分変換。偏微分方程式の解法などに使われます。,関連語: Laplace transform (ラプラス変換)
+manifold,多様体,位相・幾何学,局所的にユークリッド空間とみなせる空間のこと。微分幾何学などで扱われます。,関連語: smooth (滑らかな)
+compact,コンパクトな,位相・幾何学,任意の開被覆が有限部分被覆を持つという位相空間の性質。ハイネ・ボレルの定理などに関連します。,関連語: bounded (有界な)
+simply connected,単連結な,位相・幾何学,空間内の任意の閉曲線が連続的に一点に縮められる(穴がない)性質。コーシーの積分定理の前提条件にもなります。,関連語: path-connected (弧状連結な)
+cohomology,コホモロジー,位相・幾何学,空間の位相的性質を代数的に調べるための不変量。微分形式や特異チェインを用いて定義されます。,関連語: homology (ホモロジー)
+homotopy,ホモトピー,位相・幾何学,一つの連続写像を別の連続写像へ連続的に変形するプロセスのこと。基本群の定義に使われます。,関連語: fundamental group (基本群)
+covering space,被覆空間,位相・幾何学,ある位相空間の上に「きれいに」乗っている空間のこと。基本群やホモトピー理論と密接に関わります。,関連語: universal cover (普遍被覆)
+homeomorphism,同相写像,位相・幾何学,二つの位相空間の間に存在する連続で全単射かつ逆写像も連続な写像。「位相的に同じ」であることを意味します。,関連語: topological space (位相空間)
+open set,開集合,位相・幾何学,位相空間論において位相を定義するための基本となる集合。直感的には境界を含まない集合。,対義語: closed set (閉集合)
+neighborhood,近傍,位相・幾何学,ある点を含む開集合、あるいはその開集合を含む集合のこと。,関連語: open set (開集合)
+boundary,境界,位相・幾何学,閉包から内部を取り除いた部分のこと。,関連語: interior (内部)、closure (閉包)
+dense,稠密な,位相・幾何学,部分集合の閉包が空間全体に一致すること。有理数は実数の中で稠密です。,関連語: metric space (距離空間)
+separable,可分な,位相・幾何学,可算稠密部分集合を持つ位相空間の性質のこと。,関連語: countable (可算な)
+connected,連結な,位相・幾何学,二つの開集合に分離できない性質。,関連語: disconnected (非連結な)
+metric space,距離空間,位相・幾何学,要素間に距離が定義されている集合。,関連語: metric (距離)
+tangent space,接空間,位相・幾何学,多様体上の各点において接ベクトル全体がなすベクトル空間のこと。,関連語: cotangent space (余接空間)
+curvature,曲率,位相・幾何学,曲線や曲面がどれくらい曲がっているかを表す量。,関連語: Gaussian curvature (ガウス曲率)
+isomorphism,同型写像,代数学,演算の構造を保つ全単射。二つの代数系が「構造として全く同じ」であることを示します。,関連語: homomorphism (準同型写像)
+automorphism,自己同型,代数学,自分自身への同型写像のこと。ガロア群は体の自己同型群として定義されます。,関連語: endomorphism (自己準同型)
+group,群,代数学,結合法則を満たし、単位元と逆元を持つ代数系。対称性を記述するのに用いられます。,関連語: subgroup (部分群)
+abelian group,アーベル群,代数学,演算が可換な群のこと。可換群とも呼ばれます。,関連語: commutative (可換な)
+normal subgroup,正規部分群,代数学,群の任意の元による共役変換で不変な部分群のこと。商群を構成するのに必要です。,関連語: quotient group (商群)
+ring,環,代数学,加法に関するアーベル群であり、乗法に関して結合法則と分配法則を満たす代数系。,関連語: ideal (イデアル)
+field,体,代数学,0以外のすべての元が乗法に関する逆元を持つ可換環のこと。有理数体や実数体が代表例です。,関連語: algebraically closed (代数的に閉じた)
+field extension,体拡大,代数学,ある体が別の体の部分体になっている状況のこと。ガロア理論の基礎です。,関連語: Galois theory (ガロア理論)
+ideal,イデアル,代数学,環の特別な部分集合で環の元を掛けてもその集合に留まる性質を持つもの。剰余環を構成する際に用います。,関連語: prime ideal (素イデアル)
+prime ideal,素イデアル,代数学,積がそこに含まれるなら、少なくともどちらか一方はそこに含まれるという性質を持つイデアル。,関連語: maximal ideal (極大イデアル)
+quotient group,商群,代数学,群をその正規部分群で割って得られる新しい群の構造。剰余群とも呼ばれます。,類義語: factor group (因子群)
+characteristic,標数,代数学,環において単位元を何回足すと零元になるかを表す数。有限体の理論などで重要です。,関連語: field (体)
+nilpotent,べき零の,代数学,何乗かすると零になる元のこと。べき零行列やべき零イデアルなど様々な代数系で登場します。,関連語: zero divisor (零因子)
+commutative,可換な,代数学,演算の順序を入れ替えても結果が変わらない性質。アーベル群(Abelian group)は可換群です。,関連語: associative (結合的な)
+identity element,単位元,代数学,他の元と演算してもその元を変化させない特別な元のこと。,関連語: inverse element (逆元)
+polynomial,多項式,代数学,変数と係数の和と積で表される式。根(root)を求める問題はガロア理論に繋がります。,関連語: coefficient (係数)
+irreducible,既約な,代数学,それ以上自明でない因数に分解できない多項式や元のこと。,関連語: prime (素な、素数)
+homomorphism,準同型写像,代数学,代数系の演算を保つ写像。,関連語: isomorphism (同型写像)
+module,加群,代数学,環上のベクトル空間に相当する概念。,関連語: vector space (ベクトル空間)
+vector space,ベクトル空間,線形代数,ベクトル同士の足し算とスカラー倍が定義された空間のこと。,関連語: subspace (部分空間)
+linear combination,線形結合,線形代数,いくつかのベクトルをそれぞれスカラー倍して足し合わせたもの(一次結合)。,関連語: span (張る)
+eigenvalue,固有値,線形代数,正方行列Aに対してAx=λxを満たすスカラーλのこと。,関連語: eigenvector (固有ベクトル)
+characteristic polynomial,固有多項式,線形代数,行列 A に対して det(xE - A) で定義される多項式のこと。固有値はこの多項式の根になります。,関連語: eigenvalue (固有値)
+diagonalizable,対角化可能な,線形代数,正方行列が適当な正則行列による相似変換によって対角行列に変形できる性質。,関連語: similarity (相似)
+kernel,核,線形代数,線形写像によって零ベクトルに移される元全体の集合。代数学一般の準同型定理でも使われます。,類義語: null space (零空間)
+orthogonal,直交する,線形代数,内積空間において二つのベクトルの内積がゼロである状態を指します。,関連語: orthonormal (正規直交の)
+symmetric matrix,対称行列,線形代数,転置行列が元の行列と等しい行列のこと。実対称行列は必ず直交行列で対角化可能です。,関連語: orthogonal matrix (直交行列)
+orthogonal matrix,直交行列,線形代数,転置行列が逆行列と等しくなる実正方行列のこと。,関連語: unitary matrix (ユニタリ行列)
+determinant,行列式,線形代数,正方行列に対して定まるスカラー量。行列が正則(逆行列を持つ)かどうかの判定に使われます。,関連語: invertible (正則な)
+trace,トレース(跡),線形代数,正方行列の対角成分の和のこと。固有値の和と一致します。,関連語: determinant (行列式)
+rank,階数,線形代数,行列の線形独立な列ベクトル(または行ベクトル)の最大個数のこと。,関連語: nullity (退化次量)
+linearly independent,線形独立な(一次独立),線形代数,ベクトルの集合が自明な線形結合でのみゼロベクトルを作る性質。,対義語: linearly dependent (線形従属な)
+basis,基底,線形代数,ベクトル空間を生成(span)する線形独立なベクトルの集合。,関連語: dimension (次元)
+dimension,次元,線形代数,ベクトル空間の基底を構成するベクトルの個数のこと。,関連語: infinite dimensional (無限次元の)
+subspace,部分空間,線形代数,ベクトル空間の部分集合であり、それ自身もまたベクトル空間の構造を持つもの。,関連語: span (張る、生成する)
+inner product,内積,線形代数,二つのベクトルからスカラーを対応させる写像で、幾何学的な角度や長さを定義します。,関連語: norm (ノルム)
+linear transformation,線形変換,線形代数,ベクトル空間の構造を保つ写像。行列で表現できます。,関連語: matrix (行列)
+projection,射影,線形代数,ベクトル空間を部分空間に落とし込む変換。,関連語: idempotent (べき等な)
+positive definite,正値定符号,線形代数,任意の非零ベクトル x に対して内積 <x、 Ax> が常に正となる対称行列(またはエルミート行列)の性質。,関連語: semi-definite (半正値定符号)
+</script>
+
+<script>
+  // アイコン自動生成処理
+  (function setAppleTouchIcon() {
+    const canvas = document.createElement('canvas');
+    canvas.width = 180;
+    canvas.height = 180;
+    const ctx = canvas.getContext('2d');
+    
+    ctx.fillStyle = '#1a73e8';
+    if (ctx.roundRect) {
+      ctx.beginPath();
+      ctx.roundRect(0, 0, 180, 180, 30);
+      ctx.fill();
+    } else {
+      ctx.fillRect(0, 0, 180, 180);
+    }
+    
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 110px sans-serif';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('Σ', 90, 100);
+    
+    const link = document.createElement('link');
+    link.rel = 'apple-touch-icon';
+    link.href = canvas.toDataURL('image/png');
+    document.head.appendChild(link);
+  })();
+
+  let masterQuizData = [];
+  let currentQuizData = [];
+  let currentQuestionIndex = 0;
+  let reviewList = [];
+  let currentMode = 'all'; 
+  let quizType = 'en2ja'; 
+
+  // DOM要素
+  const loadingScreen = document.getElementById('loading-screen');
+  const loadingError = document.getElementById('loading-error');
+  const titleScreen = document.getElementById('title-screen');
+  const quizScreen = document.getElementById('quiz-screen');
+  const resultScreen = document.getElementById('result-screen');
+  const finishScreen = document.getElementById('finish-screen');
+  const categorySelect = document.getElementById('category-select');
+  const reviewCountEl = document.getElementById('review-count');
+  const questionCounter = document.getElementById('question-counter');
+  const currentCategoryLabel = document.getElementById('current-category-label');
+  const englishWordEl = document.getElementById('english-word');
+  const optionsContainer = document.getElementById('options-container');
+  const resultBanner = document.getElementById('result-banner');
+  const correctTranslationEl = document.getElementById('correct-translation');
+  const explanationTextEl = document.getElementById('explanation-text');
+  const synonymTextEl = document.getElementById('synonym-text');
+  const toast = document.getElementById('toast');
+  const statusEl = document.getElementById('status');
+  const customModal = document.getElementById('custom-modal');
+
+  // モーダル制御
+  let modalOkCallback = null;
+
+  function showModal(message, isConfirm = false, onOk = null) {
+    document.getElementById('modal-message').innerHTML = message;
+    customModal.classList.remove('hidden');
+    
+    if (isConfirm) {
+      document.getElementById('modal-btn-cancel').classList.remove('hidden');
+    } else {
+      document.getElementById('modal-btn-cancel').classList.add('hidden');
+    }
+    
+    modalOkCallback = onOk;
+  }
+
+  function handleModalAction(isOk) {
+    customModal.classList.add('hidden');
+    if (isOk && modalOkCallback) {
+      modalOkCallback();
+    }
+  }
+
+  // --- CSVデータの読み込み (埋め込みデータから直接取得) ---
+  document.addEventListener('DOMContentLoaded', () => {
+    const text = document.getElementById('csv-data').textContent;
+    processCSV(text);
+  });
+
+  // CSVのパース処理
+  function processCSV(text) {
+    const lines = text.split(/\r\n|\n|\r/);
+    const data = [];
+    
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i].trim();
+      if (!line) continue;
+      
+      if (i === 0 && line.includes('英単語')) continue;
+
+      const cols = [];
+      let current = '';
+      let inQuotes = false;
+      for (let j = 0; j < line.length; j++) {
+        const char = line[j];
+        if (char === '"') {
+          inQuotes = !inQuotes;
+        } else if ((char === ',' || char === '\t') && !inQuotes) {
+          cols.push(current.trim());
+          current = '';
+        } else {
+          current += char;
+        }
+      }
+      cols.push(current.trim());
+
+      if (cols.length >= 2 && cols[0] !== '') {
+        data.push({
+          word: cols[0] ? cols[0].replace(/^"|"$/g, '') : "",
+          correct: cols[1] ? cols[1].replace(/^"|"$/g, '') : "",
+          category: cols[2] ? cols[2].replace(/^"|"$/g, '') : "一般",
+          explanation: cols[3] ? cols[3].replace(/^"|"$/g, '') : "（解説なし）",
+          synonyms: cols[4] ? cols[4].replace(/^"|"$/g, '') : ""
+        });
+      }
+    }
+
+    if (data.length > 0) {
+      masterQuizData = data;
+      
+      const categories = [...new Set(masterQuizData.map(item => item.category))];
+      categorySelect.innerHTML = '';
+      categories.forEach(cat => {
+        const option = document.createElement('option');
+        option.value = cat;
+        option.textContent = cat;
+        categorySelect.appendChild(option);
+      });
+
+      loadingScreen.classList.add('hidden');
+      titleScreen.classList.remove('hidden');
+      updateStatus();
+    } else {
+      loadingError.innerHTML = "有効なデータが見つかりませんでした。<br>ファイルの中身が正しいか確認してください。";
+      loadingError.style.display = 'block';
+    }
+  }
+
+  // クイズ開始処理
+  function startQuiz(mode) {
+    currentMode = mode;
+    currentQuestionIndex = 0;
+    
+    quizType = document.querySelector('input[name="quiz-type"]:checked').value;
+
+    if (mode === 'all') {
+      currentQuizData = shuffle([...masterQuizData]);
+    } else if (mode === 'category') {
+      const selectedCat = categorySelect.value;
+      currentQuizData = shuffle(masterQuizData.filter(item => item.category === selectedCat));
+    } else if (mode === 'review') {
+      if (reviewList.length === 0) {
+        showModal("復習リストはまだ空です！");
+        return;
+      }
+      currentQuizData = shuffle(masterQuizData.filter(item => reviewList.includes(item.word)));
+    }
+
+    titleScreen.classList.add('hidden');
+    finishScreen.classList.add('hidden');
+    renderQuestion();
+  }
+
+  function retryQuiz() {
+    currentQuizData = shuffle([...currentQuizData]);
+    currentQuestionIndex = 0;
+    finishScreen.classList.add('hidden');
+    renderQuestion();
+  }
+
+  function backToTitle() {
+    finishScreen.classList.add('hidden');
+    titleScreen.classList.remove('hidden');
+    updateStatus();
+  }
+
+  function quitToTitle() {
+    showModal("クイズを中断してタイトルに戻りますか？", true, () => {
+      quizScreen.classList.add('hidden');
+      resultScreen.classList.add('hidden');
+      finishScreen.classList.add('hidden');
+      titleScreen.classList.remove('hidden');
+      updateStatus();
+    });
+  }
+
+  function shuffle(array) {
+    let newArray = [...array];
+    for (let i = newArray.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [newArray[i], newArray[j]] = [newArray[j], newArray[i]];
+    }
+    return newArray;
+  }
+
+  function generateOptions(currentData) {
+    const isEn2Ja = quizType === 'en2ja';
+    const correctAnswer = isEn2Ja ? currentData.correct : currentData.word;
+    const currentCategory = currentData.category;
+
+    let options = [correctAnswer];
+    
+    let sameCategoryItems = masterQuizData.filter(item => item.category === currentCategory);
+    let wrongOptions = sameCategoryItems.map(item => isEn2Ja ? item.correct : item.word).filter(ans => ans !== correctAnswer);
+    
+    wrongOptions = shuffle(wrongOptions);
+
+    if (wrongOptions.length < 3) {
+      let otherItems = masterQuizData.filter(item => item.category !== currentCategory);
+      let otherOptions = otherItems.map(item => isEn2Ja ? item.correct : item.word).filter(ans => ans !== correctAnswer && !wrongOptions.includes(ans));
+      otherOptions = shuffle(otherOptions);
+      wrongOptions = wrongOptions.concat(otherOptions);
+    }
+
+    for (let i = 0; i < 3 && i < wrongOptions.length; i++) {
+      options.push(wrongOptions[i]);
+    }
+    return shuffle(options);
+  }
+
+  function renderQuestion() {
+    const currentData = currentQuizData[currentQuestionIndex];
+    questionCounter.textContent = `Question ${currentQuestionIndex + 1} / ${currentQuizData.length}`;
+    currentCategoryLabel.textContent = `分野: ${currentData.category}`;
+    
+    const isEn2Ja = quizType === 'en2ja';
+    englishWordEl.textContent = isEn2Ja ? currentData.word : currentData.correct;
+    
+    optionsContainer.innerHTML = '';
+    const options = generateOptions(currentData);
+    
+    options.forEach(option => {
+      const btn = document.createElement('button');
+      btn.className = 'btn';
+      btn.textContent = option;
+      btn.onclick = () => checkAnswer(option, currentData);
+      optionsContainer.appendChild(btn);
+    });
+
+    quizScreen.classList.remove('hidden');
+    resultScreen.classList.add('hidden');
+  }
+
+  function checkAnswer(selectedOption, currentData) {
+    const isEn2Ja = quizType === 'en2ja';
+    const correctAnswer = isEn2Ja ? currentData.correct : currentData.word;
+    const isCorrect = (selectedOption === correctAnswer);
+
+    resultBanner.textContent = isCorrect ? "正解！" : "不正解...";
+    resultBanner.className = `result-banner ${isCorrect ? 'correct-bg' : 'incorrect-bg'}`;
+
+    correctTranslationEl.innerHTML = `${currentData.word} <br><span style="font-size:0.9rem; color:#666;">= ${currentData.correct}</span>`;
+    explanationTextEl.textContent = currentData.explanation;
+    synonymTextEl.textContent = currentData.synonyms;
+
+    quizScreen.classList.add('hidden');
+    resultScreen.classList.remove('hidden');
+  }
+
+  document.getElementById('btn-next').onclick = () => {
+    currentQuestionIndex++;
+    if (currentQuestionIndex >= currentQuizData.length) {
+      resultScreen.classList.add('hidden');
+      quizScreen.classList.add('hidden');
+      finishScreen.classList.remove('hidden');
+      return;
+    }
+    renderQuestion();
+  };
+
+  document.getElementById('btn-review').onclick = () => {
+    const currentWord = currentQuizData[currentQuestionIndex].word;
+    if (!reviewList.includes(currentWord)) {
+      reviewList.push(currentWord);
+      toast.style.display = 'block';
+      setTimeout(() => { toast.style.display = 'none'; }, 2000);
+      updateStatus();
+    }
+  };
+
+  function updateStatus() {
+    statusEl.textContent = `現在の復習リスト: ${reviewList.length} 件`;
+    reviewCountEl.textContent = `(${reviewList.length}件)`;
+  }
+</script>
+</body>
+</html>
